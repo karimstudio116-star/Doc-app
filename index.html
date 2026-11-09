@@ -26,6 +26,13 @@ button.ab{color:var(--dn);border-color:var(--dn)}
 button.pr.on{background:var(--ok);color:#fff}
 button.ab.on{background:var(--dn);color:#fff}
 .bt{display:flex;gap:6px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button{flex:1;font-weight:700}
+.tabs button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+@media (prefers-color-scheme:dark){.tabs button.on{color:#06201c}}
+.st{display:flex;gap:8px;margin-bottom:12px}.st div{flex:1;background:var(--card);border:1.5px solid var(--bd);border-radius:14px;padding:12px;text-align:center;color:var(--mu);font-size:14px}
+.st b{display:block;font-size:28px;color:var(--tx)}
+.ok{color:var(--ok);font-weight:700}.no{color:var(--dn);font-weight:700}
+.cnt{display:flex;gap:12px;font-size:15px}
 .card{background:var(--card);border:1.5px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:10px;display:flex;gap:10px;align-items:center}
 .card .g{flex:1;cursor:pointer}
 .bn{font-size:18px;font-weight:700}
@@ -65,7 +72,7 @@ function migrate(o){
  return n}
 function load(){try{var r=localStorage.getItem(K);if(r){var o=JSON.parse(r);for(var k in DEF)if(!(k in o))o[k]=clone(DEF[k]);o.labels=Object.assign({},DEF.labels,o.labels);return o}
  var old=localStorage.getItem('pedpt_v1');if(old)return migrate(JSON.parse(old))}catch(e){}return clone(DEF)}
-var S=load(),v={p:'home',b:null,d:fmt(new Date())};
+var S=load(),v={p:'home',b:null,d:fmt(new Date()),tab:'day',m:fmt(new Date()).slice(0,7),k:null};
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function shift(d,n){var t=new Date(d+'T12:00:00');t.setDate(t.getDate()+n);return fmt(t)}
@@ -102,6 +109,10 @@ function setAtt(id,val){
  S.att[v.b]=S.att[v.b]||{};var d=S.att[v.b][v.d]=S.att[v.b][v.d]||{};
  if(d[id]===val)delete d[id];else d[id]=val;
  if(!Object.keys(d).length)delete S.att[v.b][v.d];save()}
+function shiftM(m,n){var d=new Date(+m.slice(0,4),+m.slice(5,7)-1+n,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function mName(m){try{return new Date(m+'-01T12:00:00').toLocaleDateString('ar-EG',{month:'long',year:'numeric'})}catch(e){return m}}
+function stats(id){var A=S.att[v.b]||{},p=0,a=0;Object.keys(A).forEach(function(d){if(d.indexOf(v.m)==0&&A[d][id]!==undefined){if(A[d][id])p++;else a++}});return{p:p,a:a}}
+function mNav(){return '<div class="dn"><button data-a="mprev">&rsaquo;</button><div class="bn" style="flex:1;text-align:center">'+esc(mName(v.m))+'</div><button data-a="mnext">&lsaquo;</button></div>'}
 function curBranch(){return S.branches.filter(function(x){return x.id==v.b})[0]}
 
 function render(){
@@ -113,20 +124,39 @@ function render(){
   h+='<div class="row"><button class="pri" data-a="abr">+ إضافة فرع</button><button data-a="set">الإعدادات</button></div>';
  }else if(v.p=='branch'){
   var br=curBranch();if(!br){v.p='home';return render()}
-  var ks=kidsOf(v.b),at=dayAtt(),np=0,na=0;
-  ks.forEach(function(k){if(at[k.id]===true)np++;else if(at[k.id]===false)na++});
-  var wd='';try{wd=new Date(v.d+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long'})}catch(e){}
+  var ks=kidsOf(v.b);
   h+='<div class="bar"><button data-a="home">رجوع</button><div class="t">'+esc(br.name)+'</div><button data-a="kids">الأطفال</button></div>';
-  h+='<div class="dn"><button data-a="prev">&rsaquo;</button><input type="date" id="dt" value="'+v.d+'"><button data-a="next">&lsaquo;</button></div>';
-  h+='<div class="sum">'+esc(wd)+' — '+esc(L.present)+': '+np+' — '+esc(L.absent)+': '+na+' — لم يُسجل: '+(ks.length-np-na)+'</div>';
-  if(!ks.length)h+='<div class="empty">لا يوجد أطفال في هذا الفرع.<br><br><button class="pri" data-a="kids">إضافة الأطفال</button></div>';
-  else h+='<button data-a="allp" style="width:100%;margin-bottom:10px">الكل: '+esc(L.present)+'</button>';
-  ks.forEach(function(k){
-   var s=at[k.id];
-   h+='<div class="card"><div class="g bn">'+esc(k.name)+'</div><div class="bt">'
-   +'<button class="pr'+(s===true?' on':'')+'" data-a="sp" data-i="'+k.id+'">'+esc(L.present)+'</button>'
-   +'<button class="ab'+(s===false?' on':'')+'" data-a="sa" data-i="'+k.id+'">'+esc(L.absent)+'</button></div></div>';
-  });
+  h+='<div class="tabs"><button class="'+(v.tab=='day'?'on':'')+'" data-a="tabd">اليوم</button><button class="'+(v.tab=='month'?'on':'')+'" data-a="tabm">إجمالي الشهر</button></div>';
+  if(v.tab=='day'){
+   var at=dayAtt(),np=0,na=0;
+   ks.forEach(function(k){if(at[k.id]===true)np++;else if(at[k.id]===false)na++});
+   var wd='';try{wd=new Date(v.d+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long'})}catch(e){}
+   h+='<div class="dn"><button data-a="prev">&rsaquo;</button><input type="date" id="dt" value="'+v.d+'"><button data-a="next">&lsaquo;</button></div>';
+   h+='<div class="sum">'+esc(wd)+' — '+esc(L.present)+': '+np+' — '+esc(L.absent)+': '+na+' — لم يُسجل: '+(ks.length-np-na)+'</div>';
+   if(!ks.length)h+='<div class="empty">لا يوجد أطفال في هذا الفرع.<br><br><button class="pri" data-a="kids">إضافة الأطفال</button></div>';
+   else h+='<button data-a="allp" style="width:100%;margin-bottom:10px">الكل: '+esc(L.present)+'</button>';
+   ks.forEach(function(k){
+    var s=at[k.id];
+    h+='<div class="card"><div class="g bn" data-a="kd" data-i="'+k.id+'">'+esc(k.name)+'</div><div class="bt">'
+    +'<button class="pr'+(s===true?' on':'')+'" data-a="sp" data-i="'+k.id+'">'+esc(L.present)+'</button>'
+    +'<button class="ab'+(s===false?' on':'')+'" data-a="sa" data-i="'+k.id+'">'+esc(L.absent)+'</button></div></div>';
+   });
+  }else{
+   var tp=0,ta=0,rows='';
+   ks.forEach(function(k){var t=stats(k.id);tp+=t.p;ta+=t.a;
+    rows+='<div class="card"><div class="g bn" data-a="kd" data-i="'+k.id+'">'+esc(k.name)+'</div><div class="cnt"><span class="ok">'+esc(L.present)+' '+t.p+'</span><span class="no">'+esc(L.absent)+' '+t.a+'</span></div></div>'});
+   h+=mNav();
+   h+='<div class="st"><div><b class="ok">'+tp+'</b>'+esc(L.present)+'</div><div><b class="no">'+ta+'</b>'+esc(L.absent)+'</div><div><b>'+(tp+ta)+'</b>إجمالي الجلسات</div></div>';
+   h+=ks.length?rows:'<div class="empty">لا يوجد أطفال في هذا الفرع.</div>';
+  }
+ }else if(v.p=='kid'){
+  var kd=kidsOf(v.b).filter(function(z){return z.id==v.k})[0];if(!kd){v.p='branch';return render()}
+  var t2=stats(kd.id),A2=S.att[v.b]||{},ds=Object.keys(A2).filter(function(d){return d.indexOf(v.m)==0&&A2[d][kd.id]!==undefined}).sort();
+  h+='<div class="bar"><button data-a="back">رجوع</button><div class="t">'+esc(kd.name)+'</div></div>'+mNav();
+  h+='<div class="st"><div><b class="ok">'+t2.p+'</b>'+esc(L.present)+'</div><div><b class="no">'+t2.a+'</b>'+esc(L.absent)+'</div><div><b>'+(t2.p+t2.a)+'</b>إجمالي الجلسات</div></div>';
+  if(!ds.length)h+='<div class="empty">لا توجد جلسات مسجلة في هذا الشهر.</div>';
+  ds.forEach(function(d){var lb=d;try{lb=new Date(d+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'})}catch(e){}
+   var ok=A2[d][kd.id];h+='<div class="card"><div class="g">'+esc(lb)+'</div><span class="'+(ok?'ok':'no')+'">'+esc(ok?L.present:L.absent)+'</span></div>'});
  }else if(v.p=='kids'){
   var b2=curBranch();if(!b2){v.p='home';return render()}
   h+='<div class="bar"><button data-a="back">رجوع</button><div class="t">أطفال '+esc(b2.name)+'</div></div>';
@@ -147,7 +177,12 @@ function render(){
 document.body.addEventListener('click',function(e){
  var t=e.target.closest('[data-a]');if(!t||$('m').style.display=='flex')return;
  var a=t.dataset.a,i=t.dataset.i;
- if(a=='open'){v.p='branch';v.b=i;v.d=fmt(new Date());render()}
+ if(a=='open'){v.p='branch';v.b=i;v.d=fmt(new Date());v.tab='day';v.m=v.d.slice(0,7);render()}
+ else if(a=='tabd'){v.tab='day';render()}
+ else if(a=='tabm'){v.tab='month';v.m=v.d.slice(0,7);render()}
+ else if(a=='mprev'){v.m=shiftM(v.m,-1);render()}
+ else if(a=='mnext'){v.m=shiftM(v.m,1);render()}
+ else if(a=='kd'){v.k=i;v.p='kid';if(v.tab=='day')v.m=v.d.slice(0,7);render()}
  else if(a=='home'){v.p='home';render()}
  else if(a=='back'){v.p='branch';render()}
  else if(a=='kids'){v.p='kids';render()}
