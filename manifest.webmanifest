@@ -1,6 +1,6 @@
 {
-  "name": "سجل الحالات",
-  "short_name": "سجل الحالات",
+  "name": "يوميات علاج طبيعي",
+  "short_name": "يوميات علاج",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "./index.html",
